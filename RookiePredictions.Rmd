@@ -1,0 +1,50 @@
+```{r}
+library(readxl)
+library(QuantPsyc) 
+file_path <- "/Users/finleymallery/Downloads/2017-2020 drafted QBs statsUtx.xlsx"
+excel_data <- read_excel(file_path)
+model_data <- excel_data[, c("PassAttempts", "Comp%", "TotalYards",
+                             "Yards/Attempt", "Ratio", "PasserEfficiencyRating",
+                             "ConferenceRank", "FirstYearPasserRating")]
+model_data <- na.omit(model_data)
+predictor_vars <- c("PassAttempts", "Comp%", "TotalYards",
+                             "Yards/Attempt", "Ratio", "PasserEfficiencyRating",
+                             "ConferenceRank")
+model_data[predictor_vars] <- lapply(model_data[predictor_vars], function(x) as.numeric(as.character(x)))
+sapply(model_data, function(x) sum(is.na(x)))
+regression_model <- lm(FirstYearPasserRating ~ PassAttempts + `Comp%` + TotalYards + 
+                       `Yards/Attempt` + Ratio + PasserEfficiencyRating + 
+                       ConferenceRank, data = model_data)
+model_data_normalized <- as.data.frame(scale(model_data[, predictor_vars]))
+# Add response variable back into normalized data frame
+model_data_normalized$FirstYearPasserRating <- model_data$FirstYearPasserRating
+str(model_data_normalized)
+# run the linear regression with the normalized data
+regression_model_normalized <- lm(FirstYearPasserRating ~ ., data = model_data_normalized)
+new_model_data[predictor_vars] <- lapply(new_model_data[predictor_vars], function(x) as.numeric(as.character(x)))
+new_model_data_normalized <- as.data.frame(scale(new_model_data[, predictor_vars], 
+                                                 center = attr(model_data_normalized, "scaled:center"), 
+                                                 scale = attr(model_data_normalized, "scaled:scale")))
+predictions <- predict(regression_model_normalized, new_model_data_normalized)
+print(predictions)
+
+
+```
+
+
+```{r}
+ library(readxl)
+library(ggplot2)
+file_path <- "/Users/finleymallery/Downloads/2017-2020 drafted QBs stats3.xlsx"
+excel_data <- read_excel(file_path)
+excel_data$`Comp %` <- scale(excel_data$`Comp %`)
+regression_result <- lm(`First Year Passer Rating` ~ `Comp %`, data = excel_data)
+summary(regression_result)
+ggplot(excel_data, aes(x = `Comp %`, y = `First Year Passer Rating`)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(x = "Standardized Completion Percentage", y = "First Year Passer Rating") +
+  ylim(30, 120) + 
+  theme_minimal()
+
+```
