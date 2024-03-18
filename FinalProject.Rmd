@@ -1,0 +1,115 @@
+---
+title: "Stats 100: Final Project"
+author: "Drew Silva"
+date: "March 8, 2024"
+header-includes:
+   - \usepackage{bbm, amsmath,amsfonts,amsthm,amssymb,mathrsfs,amsxtra,amscd,latexsym, xcolor, graphicx, fvextra}
+   - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+output: pdf_document
+---
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Cov}{\mathrm{Cov}}
+\newcommand{\diag}{\mathrm{diag}}
+\newcommand{\Corr}{\mathrm{Corr}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\fix}[1]{\textcolor{red}{\textbf{\large (#1)\normalsize}}}
+
+# Acknowledgements
+
+
+
+```{r}
+suppressPackageStartupMessages(library(BradleyTerry2))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(glmnet))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(predtools))
+suppressPackageStartupMessages(library(psych))
+
+```
+
+
+
+```{r}
+careerData = read.csv('NFLQBCareerStats.csv')
+collegeData = read.csv('NFLQBCollegeStats.csv')
+
+mergedPlayerData = merge(careerData, collegeData, by = "Player")
+
+```
+
+
+```{r}
+normalize_data = function(col) {
+  df_mean = mean(col)
+  df_sd = sd(col)
+  return((col - df_mean) / df_sd)
+}
+
+filtered_df <- mergedPlayerData[mergedPlayerData$GS >= 10 & !is.na(mergedPlayerData$GS), ]
+
+filtered_df$NormPA = normalize_data(filtered_df$Pass.Attempts)
+filtered_df$NormCompPct = normalize_data(filtered_df$Comp..)
+filtered_df$NormYds = normalize_data(filtered_df$Total.Yards)
+filtered_df$NormY.A = normalize_data(filtered_df$Passing.Yards.Attempt)
+filtered_df$Ratio = filtered_df$Passing.Touchdowns / filtered_df$Passing.Interceptions
+filtered_df$NormRatio = normalize_data(filtered_df$Ratio)
+filtered_df$NormPER = normalize_data(filtered_df$Passer.Efficiency.Rating)
+filtered_df$NormConfRank = normalize_data(filtered_df$Conference.Rank)
+
+
+
+
+
+model = lm(Rate ~ NormPA + NormCompPct + NormRatio + NormY.A + NormPER + NormConfRank, data = filtered_df)
+#model = lm(Rate ~ NormPA + NormCompPct + NormYds + NormY.A + NormRatio + NormPER + NormConfRank, data = filtered_df)
+
+
+summary(model)
+
+test_data = read.csv('NFLQBProspectStats.csv')
+
+test_data$NormPA = normalize_data(test_data$Pass.Attempts)
+test_data$NormCompPct = normalize_data(test_data$Comp..)
+test_data$NormYds = normalize_data(test_data$Total.Yards)
+test_data$NormY.A = normalize_data(test_data$Passing.Yards.Attempt)
+test_data$Ratio = test_data$Passing.Touchdowns / test_data$Passing.Interceptions
+test_data$NormRatio = normalize_data(test_data$Ratio)
+test_data$NormPER = normalize_data(test_data$Passer.Rating)
+
+test_data$NormConfRank = normalize_data(test_data$Conference.Rank)
+
+
+training_predictions = predict(model, filtered_df)
+filtered_df$Predictions = training_predictions
+training_data_qbs = filtered_df[order(-filtered_df$Predictions), ]
+sorted_training_data = training_data_qbs[, c("Player", "Predictions")]
+sorted_training_data
+
+predictions = predict(model, test_data)
+test_data$Predictions = predictions
+
+test_data = test_data[order(-test_data$Predictions), ]
+test_data$Predictions = round(test_data$Predictions, 1)
+sorted_test_data = test_data[, c("Player", "Predictions")]
+new_df = test_data[, c("Player", "Predictions"), drop = FALSE]
+
+sorted_test_data
+
+```
+
+```{r}
+
+#ggplot(data = test_data, aes(x= NormCompPct, y= Predictions, label=Player)) + geom_point() + 
+  #geom_text(vjust = 1, hjust = 0.5) +
+  # xlim(-2.5, 1.5) +
+  #ylim(60, 105)
+
+ggplot(data = test_data, aes(x= Ratio, y= Weighted.Prediction)) + geom_point() + geom_smooth(method = "lm", se = FALSE) +
+xlab("TD/Int Ratio") +
+  ylab("Weighted Predicted Passer Rating")
+
+```
+
+
